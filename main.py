@@ -39,7 +39,12 @@ async def health():
 
 
 @app.post("/causas/process-pdfs", status_code=200)
-async def process_associated_pdfs(test: str | None = None, item: CausaItem | None = None, response: Response = Response):
+async def process_associated_pdfs(
+    test: str | None = None,
+    model: str | None = None,
+    item: CausaItem | None = None,
+    response: Response = Response
+):
     
     if test == 'true':
     
@@ -60,7 +65,8 @@ async def process_associated_pdfs(test: str | None = None, item: CausaItem | Non
         s3_urls = [pdf['s3_url'] for pdf in causa['detail']['associated_pdfs']]
         object_keys = [ 'pdf/' + s3_url.split('/')[-1] for s3_url in s3_urls]
         
-        ollama_responses = await ollame_service.extract_ruts_from_pdf(causa['detail']['litigantes'], object_keys, use_async=True)
+        ollama_responses = await ollame_service.extract_ruts_from_pdf(
+            causa['detail']['litigantes'], object_keys, use_async=True, model=model)
 
         failed_responses = [response for response in ollama_responses if response['result'] is None]
         success_responses = [response for response in ollama_responses if response['result'] is not None]

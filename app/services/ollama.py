@@ -33,13 +33,13 @@ async def fetch_model(prompt: str, paylaod: dict = DEFAULT_MODEL_METADATA) -> di
 
 
 
-async def extract_ruts_from_pdf(litigantes: list[dict], object_keys: list[str], use_async: bool = False) -> list[dict]:
+async def extract_ruts_from_pdf(litigantes: list[dict], object_keys: list[str], use_async: bool = False, model: str = 'deepseek-coder:6.7b') -> list[dict]:
     tasks = []
     for object_key in object_keys:
         if use_async:
-            tasks.append(_extract_ruts_from_pdf(litigantes, object_key))
+            tasks.append(_extract_ruts_from_pdf(litigantes, object_key, model))
         else:
-            tasks.append(asyncio.to_thread(_extract_ruts_from_pdf, litigantes, object_key))
+            tasks.append(asyncio.to_thread(_extract_ruts_from_pdf, litigantes, object_key, model))
 
     if use_async:
         return await asyncio.gather(*tasks)
@@ -47,7 +47,13 @@ async def extract_ruts_from_pdf(litigantes: list[dict], object_keys: list[str], 
         return [task.result() for task in tasks]
 
 
-async def _extract_ruts_from_pdf(litigantes: list[dict], pdf_object_key: str, model_metadata: dict = DEFAULT_MODEL_METADATA) -> list[dict]:
+async def _extract_ruts_from_pdf(
+    litigantes: list[dict],
+    pdf_object_key: str,
+    model_metadata: dict = DEFAULT_MODEL_METADATA,
+    model: str = 'deepseek-coder:6.7b') -> list[dict]:
+    
+    model_metadata['model'] = model
     
     try:
         print(f"Downloading PDF: {pdf_object_key}")
