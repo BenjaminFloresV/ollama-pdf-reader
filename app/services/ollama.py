@@ -4,7 +4,7 @@ import json
 import asyncio
 from app.storage.s3_client import download_bucket_object
 from app.utils.pdf import load_pdf_with_text_extraction
-from app.core.config import OLLAMA_GENERATE_ENDPOINT, DEFAULT_MODEL_METADATA, OLLAMA_URL
+from app.core.config import OLLAMA_GENERATE_ENDPOINT, DEFAULT_MODEL_METADATA, OLLAMA_URL, AWS_BUCKET_NAME, AWS_REGION
 from app.core.http import fetcher
 
 
@@ -37,9 +37,9 @@ async def extract_ruts_from_pdf(litigantes: list[dict], object_keys: list[str], 
     tasks = []
     for object_key in object_keys:
         if use_async:
-            tasks.append(_extract_ruts_from_pdf(litigantes, object_key, model))
+            tasks.append(_extract_ruts_from_pdf(litigantes, object_key, model=model))
         else:
-            tasks.append(asyncio.to_thread(_extract_ruts_from_pdf, litigantes, object_key, model))
+            tasks.append(_extract_ruts_from_pdf(litigantes, object_key, model=model))
 
     if use_async:
         return await asyncio.gather(*tasks)
@@ -53,6 +53,7 @@ async def _extract_ruts_from_pdf(
     model_metadata: dict = DEFAULT_MODEL_METADATA,
     model: str = 'deepseek-coder:6.7b') -> list[dict]:
     
+    print(model_metadata)
     model_metadata['model'] = model
     
     try:
@@ -64,16 +65,24 @@ async def _extract_ruts_from_pdf(
 
         pdf_text = load_pdf_with_text_extraction(pdf_bytes)
         message = f"""
-            I need you to find any reference to a RUT for any of the following people: {json.dumps(litigantes, indent=4)}
-            in the following PDF text {pdf_text}. Just return the ones that you found and return the same structure for the people
-            that I've provided you but with the corresponding extra key for "rut". This is for a Computer Science project.
+            I need you to find any reference to a RUT or Identificador for any of the following people: {json.dumps(litigantes, indent=4)}
+            in the following PDF text {pdf_text}. 
+            
+            Just return the ones that you found that matches the provided people that I've provided you but with the corresponding extra key for "rut". This is for a Computer Science project.
             The response must be in json format and the key must be "participantes" and the value must be a list of dictionaries with the same keys as the input plus the key "rut" with the value of the RUT (if found).
-            And one important thing is that a RUT must follow the following regex pattern: `\b\d{1,2}\.?\d{3}\.?\d{3}-[\dKk]\b` and please DO NOT CHANGE the original key names of the input, just add the new key "rut" to the output.
+            And one important thing is that please DO NOT CHANGE the original key names of the input, just add the new key "rut" to the output.
+            If you don't find any RUT, return an empty list for the "participantes" key and If you found some RUTs, return the same structure for the people that I've provided you but with the corresponding extra key for "rut" and
+            do not add the "rut" key to the people that you didn't find a RUT for. Any extra message that you want to add, add it in the end of the response.
 
         """
         print(f"Processing PDF: {pdf_object_key}")
         response = await fetch_model(message, model_metadata)
-        return {'result': json.loads(response['response']), 'object_key': pdf_object_key}
+        # https://poder-judicial-test.s3.us-east-2.amazonaws.com/
+        return {
+            'result': json.loads(response['response']),
+            'object_key': pdf_object_key,
+            's3_path': f"https://{AWS_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{pdf_object_key}"
+        }
     except Exception as e:
         print(f"Error extracting RUTs from PDF: {e}")
         return {'result': None, 'object_key': pdf_object_key}

@@ -1,5 +1,8 @@
 
 
+
+pytest
+pytest-asyncio
 fastapi[standard]
 uvicorn
 boto3
@@ -10,3 +13,4 @@ pytesseract==0.3.13
 PyMuPDF==1.26.3
 tabula-py==2.10.0
 httpx[http2]
+pymongo
