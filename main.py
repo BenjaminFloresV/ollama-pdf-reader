@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response, status
 from app.models.causa import CausaItem
 from app.mocks.database import mock_database
-import app.services.ollama as ollame_service
+import app.services.ollama as ollama_service
 from app.persistence.persistence import persistence as persistence_client
 
 # To check API doc: 
@@ -18,11 +18,11 @@ async def lifespan(app: FastAPI):
     # Load whatever you need, example: db client
 
     #await ollame_service.pull_model('deepseek-r1:1.5b')
-    await ollame_service.pull_model('deepseek-coder:6.7b')
+    await ollama_service.pull_model('deepseek-coder:6.7b')
     #await ollame_service.pull_model('gpt-oss:20b')
 
     yield
-    # Clean up the ML models and release the resources when server shutsdown
+    # Anyhing else at the end
 
 
 app = FastAPI(lifespan=lifespan)
@@ -69,7 +69,7 @@ async def process_associated_pdfs(
     if is_reserved:
         return {'success_responses': [], 'failed_responses': [], 'message': 'Causa is reserved'}
 
-    ollama_responses = await ollame_service.extract_ruts_from_pdf(
+    ollama_responses = await ollama_service.extract_ruts_from_pdf(
         causa['detail']['litigantes'], object_keys, use_async=True, model=model)
 
     failed_responses = [response for response in ollama_responses if response['result'] is None]

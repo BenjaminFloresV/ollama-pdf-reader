@@ -17,6 +17,7 @@ async def pull_model(model_name: str = 'deepseek-r1:1.5b'):
     }
     response, status_code = await fetcher.post(OLLAMA_URL + '/api/pull', data=payload, headers={"Content-Type": "application/json"})
     if status_code != 200:
+        print(status_code)
         raise Exception(f"Could not pull model: {response}")
     return response
 

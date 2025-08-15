@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-DEBUG = True
+DEBUG = False
 
 
 AWS_ACCESS_KEY=os.getenv('AWS_ACCESS_KEY')
