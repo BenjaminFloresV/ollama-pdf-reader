@@ -1,5 +1,7 @@
 
 import boto3
+import asyncio
+import traceback
 from botocore.client import BaseClient
 from app.core.config import AWS_ACCESS_KEY, AWS_REGION, AWS_SECRET_KEY, AWS_BUCKET_NAME
 
@@ -17,6 +19,7 @@ def init_s3_client():
                 region_name=AWS_REGION,
             )
         except Exception as e:
+            traceback.print_exception(e)
             print("Could not connect to s3: {}".format(e))
             return
         
@@ -36,3 +39,27 @@ async def download_bucket_object(object_key: str) -> bytes:
     except Exception as e:
         print("Could not download object from s3: {}".format(e))
         return None
+    
+
+async def download_bucket_objects(object_keys: list[str]) -> list[bytes]:
+    """
+        Return: [{'object_key': <object_key>, 's3_url': <s3_url>, 'pdf_bytes': <pdf_bytes>}]
+    """
+    objects_data = []
+    for object_key in object_keys:
+        pdf_bytes = await download_bucket_object(object_key)
+        s3_url = f'https://{AWS_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/' + object_key
+        if not pdf_bytes:
+            objects_data.append({
+                'object_key': object_key,
+                's3_url': s3_url,
+                'pdf_bytes': None
+            })
+            continue
+        objects_data.append({
+            'object_key': object_key,
+            's3_url': s3_url,
+            'pdf_bytes': pdf_bytes
+        })
+    
+    return objects_data

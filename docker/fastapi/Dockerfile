@@ -12,13 +12,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc && apt-get 
 
 # Copia el archivo de requerimientos y instala las dependencias
 COPY ./requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Instala dependencias de producción y testing
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir pytest pytest-asyncio
 
-# Copia el resto del código fuente
+# Copia el resto del código fuente (incluyendo tests)
 COPY . /app
+
+# Copia el entrypoint que correrá los tests y luego iniciará la app
+COPY ./docker/fastapi/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Expone el puerto en el que FastAPI escuchará (por defecto 8000)
 EXPOSE 8000
 
-# Comando para ejecutar la app con Uvicorn al inicio del contenedor
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Comando por defecto: ejecutar entrypoint (tests + API)
+CMD ["/app/entrypoint.sh"]
