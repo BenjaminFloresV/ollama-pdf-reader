@@ -7,8 +7,6 @@ from app.storage.s3_client import download_bucket_object
 from app.core.config import OLLAMA_GENERATE_ENDPOINT, DEFAULT_MODEL_METADATA, OLLAMA_URL, AWS_BUCKET_NAME, AWS_REGION
 from app.core.http import fetcher
 
-
-
 class OllamaService(BaseService):
 
     def __init__(self):

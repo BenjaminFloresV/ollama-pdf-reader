@@ -8,6 +8,7 @@ from app.services.ollama import OllamaService
 from app.services.pdf_reader import PDFReaderService
 from app.storage.s3_client import init_s3_client, download_bucket_objects
 from app.persistence.persistence import persistence as persistence_client
+from app.utils.toolbelt import validar_rut
 
 # To check API doc: 
 # - http://127.0.0.1:8000/redoc

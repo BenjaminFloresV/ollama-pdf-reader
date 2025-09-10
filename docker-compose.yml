@@ -38,7 +38,7 @@ services:
     env_file:
       - .env
     environment:
-      - MONGO_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/?authSource=admin
+      - MONGO_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27018/?authSource=admin
       - OLLAMA_URL=http://ollama_server:11434
     depends_on:
       - ollama_server
@@ -50,7 +50,7 @@ services:
      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER}
      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
    ports:
-     - "27017:27017"
+     - "27018:27017"
    volumes:
      - mongo_data:/data/db
 

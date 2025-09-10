@@ -274,7 +274,8 @@ class MongoDBClient(AbstractPersistenceClient):
         )
 
         return is_saved
-    
+
+
     async def save_causa_detail(self, causa_metadata: dict):
         
         is_saved = await self.mongo_safe_query(
@@ -288,8 +289,10 @@ class MongoDBClient(AbstractPersistenceClient):
         )
         return is_saved
 
+
     async def save_execution_time(self, main_task_id: str, end_time: float, start_time: float, verbose: bool = False):
         return await self.mongo_save_execution_time(main_task_id=main_task_id, end_time=end_time, start_time=start_time, verbose=verbose)
+
 
     async def get_causa_by_id(self, causa_id):
         return await self.mongo_safe_query(
@@ -300,9 +303,11 @@ class MongoDBClient(AbstractPersistenceClient):
                 '_id': ObjectId(causa_id)
             }
         )
-    
+
+
     async def update_causa_detail(self, causa):
         return await super().update_causa_detail(causa)
+
 
 if __name__ == '__main__':
     

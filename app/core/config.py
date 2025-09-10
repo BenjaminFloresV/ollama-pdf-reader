@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-DEBUG = False
+DEBUG = True
 
 
 AWS_ACCESS_KEY=os.getenv('AWS_ACCESS_KEY')
@@ -61,9 +61,6 @@ DEFAULT_MODEL_METADATA = {
 }
 
 
-
-
-
 DEFAULT_HTTP_HEADERS =  {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:141.0) Gecko/20100101 Firefox/141.0',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -85,10 +82,11 @@ DEFAULT_HTTP_HEADERS =  {
 
 
 MAX_CONCURRENT_TASKS = 4
+MONGO_PORT = os.getenv("MONGO_PORT", 27017)
 
 
 if DEBUG:
-    MONGO_URI = "mongodb://adminuser:hello123@localhost:27017/?authSource=admin"
+    MONGO_URI = f"mongodb://adminuser:hello123@localhost:{MONGO_PORT}/?authSource=admin"
 else:
     MONGO_URI = os.getenv("MONGO_URI")
 
