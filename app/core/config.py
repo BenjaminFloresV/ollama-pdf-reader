@@ -5,18 +5,22 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-DEBUG = True
+DEBUG = True if os.getenv("DEBUG", "false") == "true" else False
 
+FAST_API_PORT = os.getenv("FAST_API_PORT", 8000)
 
 AWS_ACCESS_KEY=os.getenv('AWS_ACCESS_KEY')
 AWS_SECRET_KEY=os.getenv('AWS_SECRET_KEY')
 AWS_REGION=os.getenv('AWS_REGION')
+AWS_BUCKET_NAME = os.getenv("AWS_BUCKET_NAME", 'poder-judicial-test')
+
 OLLAMA_URL=os.getenv('OLLAMA_URL', 'http://localhost:11434')
 OLLAMA_GENERATE_ENDPOINT = "{}/api/generate".format(OLLAMA_URL)
-AWS_BUCKET_NAME = os.getenv("AWS_BUCKET_NAME", 'poder-judicial-test')
+OLLAMA_API_REST_PORT = os.getenv('OLLAMA_API_REST_PORT', 11434)
+
 DEFAULT_HTTP_TIMEOUT = 10000
 
-DEFAULT_MODEL_METADATA = {
+DEFAULT_MODEL_METADATA_OLD = {
     "model": "deepseek-coder:6.7b", # deepseek-coder:6.7b
     "format": "json",
     "stream": False,
@@ -60,6 +64,37 @@ DEFAULT_MODEL_METADATA = {
     """
 }
 
+DEFAULT_MODEL_METADATA = {
+    "model": "deepseek-coder:6.7b", 
+    "format": "json",
+    "stream": False,
+    "system": """
+        Eres un experto en extracción de información de documentos PDF. Tu tarea es identificar e_xclusivamente_ los RUTs de personas naturales en un texto.
+        
+        <instrucciones>
+            1. Identifica cualquier número que coincida con el formato de RUT chileno: 
+               - Puede tener puntos o no.
+               - Debe tener un guion seguido por un dígito o una 'k' (ej. 12.345.678-5, 12345678-K).
+            2. Asocia cada RUT encontrado con un nombre de persona. El nombre debe estar en un rango de 20-30 palabras antes o después del RUT. 
+            3. Ignora cualquier referencia a R.U.C. (Rol Único Tributario de empresas).
+            4. Si se encuentran múltiples RUTs para la misma persona, devuélvelos todos.
+        </instrucciones>
+        
+        <formato-de-salida>
+            La respuesta debe ser un objeto JSON con una única clave llamada "resultados". El valor de "resultados" debe ser una lista de diccionarios.
+            
+            Cada diccionario en la lista debe tener la siguiente estructura exacta:
+            
+            {
+                "nombre": "<el nombre de la persona>",
+                "rut": "<el RUT encontrado>"
+            }
+            
+            Si no se encuentra ningún RUT, la lista "resultados" debe estar vacía: []
+        </formato-de-salida>
+    """
+}
+
 
 DEFAULT_HTTP_HEADERS =  {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:141.0) Gecko/20100101 Firefox/141.0',
@@ -82,12 +117,17 @@ DEFAULT_HTTP_HEADERS =  {
 
 
 MAX_CONCURRENT_TASKS = 4
-MONGO_PORT = os.getenv("MONGO_PORT", 27017)
-
+TEST_MONGO_PORT = os.getenv("TEST_MONGO_PORT", 27017)
+TEST_MONGO_PASSWORD = os.getenv("TEST_MONGO_PASSWORD", "hello123")
+TEST_MONGO_USER = os.getenv("TEST_MONGO_USER", "adminuser")
 
 if DEBUG:
-    MONGO_URI = f"mongodb://adminuser:hello123@localhost:{MONGO_PORT}/?authSource=admin"
+    
+    MONGO_URI = os.getenv("TEST_MONGO_URI")
+    # MONGO_URI = f"mongodb://{TEST_MONGO_USER}:{TEST_MONGO_PASSWORD}@localhost:{TEST_MONGO_PORT}/?authSource=admin"
 else:
-    MONGO_URI = os.getenv("MONGO_URI")
+    MONGO_URI = os.getenv("PRODUCTION_MONGO_URI")
 
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+USE_GPT_OSS = True if os.getenv("USE_GPT_OSS", "false").strip().lower() == "true" else False

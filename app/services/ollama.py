@@ -2,10 +2,14 @@
 
 import json
 import asyncio
+import traceback
 from app.services.base import BaseService
-from app.storage.s3_client import download_bucket_object
 from app.core.config import OLLAMA_GENERATE_ENDPOINT, DEFAULT_MODEL_METADATA, OLLAMA_URL, AWS_BUCKET_NAME, AWS_REGION
 from app.core.http import fetcher
+from app.utils.toolbelt import validate_rut
+from app.core.logger import StructuredLogger
+
+logger = StructuredLogger(service="ollama_service")
 
 class OllamaService(BaseService):
 
@@ -20,7 +24,7 @@ class OllamaService(BaseService):
         }
         response, status_code = await fetcher.post(OLLAMA_URL + '/api/pull', data=payload, headers={"Content-Type": "application/json"})
         if status_code != 200:
-            print(status_code)
+            logger.error("Could not pull model", extra={"status_code": status_code})
             raise Exception(f"Could not pull model: {response}")
         return response
 
@@ -31,6 +35,7 @@ class OllamaService(BaseService):
         response, status_code = await fetcher.post(OLLAMA_GENERATE_ENDPOINT, data=payload, headers={"Content-Type": "application/json"})
         
         if status_code != 200:
+            logger.error("Could not fetch model", extra={"status_code": status_code})
             raise Exception("Could not fetch model")
         return response
 
@@ -46,13 +51,13 @@ class OllamaService(BaseService):
         if use_async:
             tasks = []
             for pdf_data in pdfs_data:
-                tasks.append(self._extract_ruts_from_pdf(litigantes, pdf_data['pdf_text'], model=model))
+                tasks.append(self._extract_ruts_from_pdf(litigantes, pdf_data['pdf_text'], model=model, s3_url=pdf_data['s3_url']))
             
             return await asyncio.gather(*tasks)
         else:
             results = []
             for pdf_data in pdfs_data:
-                results.append(await self._extract_ruts_from_pdf(litigantes, pdf_data['pdf_text'], model=model))
+                results.append(await self._extract_ruts_from_pdf(litigantes, pdf_data['pdf_text'], model=model, s3_url=pdf_data['s3_url']))
             return results
 
     async def _extract_ruts_from_pdf(
@@ -60,7 +65,8 @@ class OllamaService(BaseService):
         litigantes: list[dict],
         pdf_text: str,
         model_metadata: dict = DEFAULT_MODEL_METADATA,
-        model: str = 'deepseek-coder:6.7b'
+        model: str = 'deepseek-coder:6.7b',
+        s3_url: str = None
     ) -> list[dict]:
         
         model_metadata['model'] = model
@@ -87,26 +93,42 @@ class OllamaService(BaseService):
                 "pdf_text": pdf_text,
                 "output_format": [{"rut": "<rut_value>", "nombre": "<name_value>"}]
             })
+
+            # NEW WAY:
+            message = json.dumps({"pdf_text": pdf_text})
             response = await self.fetch_model(message, model_metadata)
             # https://poder-judicial-test.s3.us-east-2.amazonaws.com/
+            
+            json_response = json.loads(response['response'])
+            if isinstance(json_response['resultados'], dict):
+                json_response['resultados'] = [json_response['resultados']]
+            
+            
+            valid_results = []
+            for item in json_response['resultados']:
+                if "nombre" in item and "rut" in item:
+                    if validate_rut(item['rut']):
+                        valid_results.append({"nombre": item['nombre'], "rut": item['rut']})
+            
             return {
-                'result': json.loads(response['response']),
+                'result': json_response,
                 'status': 'ok',
-                'message': 'PDF file processed'
+                'message': 'PDF file processed',
+                's3_url': s3_url
             }
         except Exception as e:
-            print(f"Error extracting RUTs from PDF: {e}")
+            logger.error("Error extracting RUTs from PDF", extra={"error": str(e)})
             return {
                 'result': None,
                 'status': 'error',
-                'error': str(e)
+                'error': str(e) + "traceback: " + traceback.format_exc()    
             }
 
 
     async def ollama_generate_endpoint(self):
         test_message = "Hello, how are you?"
         response = await self.fetch_model(test_message)
-        print(response)
+        logger.info("Ollama response", extra={"response": response})
 
 
 if __name__ == "__main__":

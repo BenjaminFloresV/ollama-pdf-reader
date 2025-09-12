@@ -1,6 +1,11 @@
+import re
+import asyncio
 from app.services.base import BaseService
 from app.utils.pdf import load_pdf
+from app.utils.toolbelt import validate_rut
+from app.core.logger import StructuredLogger
 
+logger = StructuredLogger(service="pdf_reader_service")
 
 class PDFReaderService(BaseService):
     
@@ -31,11 +36,32 @@ class PDFReaderService(BaseService):
         """
         return self.transformed_pdf_files
 
-    async def extract_ruts_from_pdf(self, pdf_bytes: bytes) -> list[dict]:
-        # TODO: Implement regex extraction of ruts from pdf text and then pass that RUT to the rutificador service
-        pass
+    async def extract_ruts_from_pdf(self, pdfs_data: list[dict]) -> list[dict]:
+        tasks = []
+        for pdf_data in pdfs_data:
+            tasks.append(self._extract_ruts_from_pdf(pdf_data['pdf_text']))
+        
+        results = await asyncio.gather(*tasks)
+        ruts = []
+        
+        for result in results:
+            ruts.extend([rut.replace('.', '') for rut in result])
+        
+        ruts = list(set(ruts))
+        ruts = [rut for rut in ruts if validate_rut(rut)]
+
+        return ruts
     
     
-    
+    async def _extract_ruts_from_pdf(self, pdf_text: str) -> list[dict]:
+        try:
+            logger.info("Extracting RUTs from PDF", extra={"pdf_text": pdf_text})
+            rut_pattern = r'\d{1,2}\.?\d{3}\.?\d{3}-[\dkK]'
+            mmatches = re.findall(rut_pattern, pdf_text)
+            
+            return mmatches
+        except Exception as e:
+            logger.error("Error extracting RUTs from PDF", extra={"error": str(e)})
+            return []
     
     

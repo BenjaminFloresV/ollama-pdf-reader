@@ -14,3 +14,4 @@ PyMuPDF==1.26.3
 tabula-py==2.10.0
 httpx[http2]
 pymongo
+google-genai==1.36.0

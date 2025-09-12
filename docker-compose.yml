@@ -33,13 +33,15 @@ services:
       dockerfile: docker/fastapi/Dockerfile
     container_name: fastapi_container
     ports:
-      - "8000:8000"  # Host:Contenedor
+      - "${FAST_API_PORT}:${FAST_API_PORT}"  # Host:Contenedor
     #command: uvicorn main:app --host 0.0.0.0 --port 8000
     env_file:
       - .env
     environment:
-      - MONGO_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27018/?authSource=admin
+      - TEST_MONGO_URI=mongodb://${TEST_MONGO_USER}:${TEST_MONGO_PASSWORD}@mongo:27017/?authSource=admin
+      - PRODUCTION_MONGO_URI=${PRODUCTION_MONGO_URI}
       - OLLAMA_URL=http://ollama_server:11434
+      - DEBUG=${DEBUG}
     depends_on:
       - ollama_server
       - mongo
@@ -47,10 +49,10 @@ services:
   mongo:
    image: mongo
    environment:
-     - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER}
-     - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
+     - MONGO_INITDB_ROOT_USERNAME=${TEST_MONGO_USER}
+     - MONGO_INITDB_ROOT_PASSWORD=${TEST_MONGO_PASSWORD}
    ports:
-     - "27018:27017"
+     - "${TEST_MONGO_PORT}:27017"
    volumes:
      - mongo_data:/data/db
 

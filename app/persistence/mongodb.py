@@ -301,7 +301,8 @@ class MongoDBClient(AbstractPersistenceClient):
             function='find_one',
             filter={
                 '_id': ObjectId(causa_id)
-            }
+            },
+            timeout=15000
         )
 
 

@@ -2,18 +2,22 @@ import os
 import uuid
 import pytest
 import pytest_asyncio
+from app.core.logger import StructuredLogger
+from app.core.config import MONGO_URI
+
+logger = StructuredLogger("tests.test_mongodb_client")
 
 # pytest-asyncio is required for async tests
 #pytest_plugins = ("pytest_asyncio", "pytest")
 
 # Patch the MONGO_URI used inside the MongoDBClient module **before** importing it
-os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
+os.environ.setdefault("MONGO_URI", MONGO_URI)
 
 from importlib import reload
 
 # Re-import the module so that the patched env var is picked up
 from app.persistence import mongodb as mongodb_module
-mongodb_module.MONGO_URI = os.getenv("MONGO_URI")
+mongodb_module.MONGO_URI = os.getenv(MONGO_URI)
 reload(mongodb_module)  # make sure the constant is refreshed
 
 from app.persistence.mongodb import MongoDBClient
@@ -23,7 +27,15 @@ from bson import ObjectId
 @pytest_asyncio.fixture
 async def mongo_client():
     """Provide an initialised MongoDBClient and ensure test DB cleanup."""
-    client = MongoDBClient()
+    
+    logger.info(f"Trying to connect to MongoDB {MONGO_URI}...")
+    try:
+        client = MongoDBClient()
+        logger.info(f"Connected to MongoDB")
+    except Exception as e:
+        logger.error(f"Error connecting to MongoDB: {e}")
+        return
+    
     # Name a dedicated test database so we don't accidentally mess with real data
     test_db_name = f"test_db_{uuid.uuid4().hex}"
     yield client, test_db_name
@@ -38,6 +50,11 @@ async def mongo_client():
 
 @pytest.mark.asyncio
 async def test_insert_and_find_one(mongo_client):
+    
+    if not mongo_client:
+        logger.error("Mongo client not found")
+        assert False
+    
     client, db_name = mongo_client
     collection = "items"
 
@@ -68,6 +85,11 @@ async def test_insert_and_find_one(mongo_client):
 
 @pytest.mark.asyncio
 async def test_update_and_count(mongo_client):
+    
+    if not mongo_client:
+        logger.error("Mongo client not found")
+        assert False
+    
     client, db_name = mongo_client
     collection = "items"
 
@@ -103,6 +125,11 @@ async def test_update_and_count(mongo_client):
 
 @pytest.mark.asyncio
 async def test_find_with_pagination(mongo_client):
+    
+    if not mongo_client:
+        logger.error("Mongo client not found")
+        assert False
+    
     client, db_name = mongo_client
     collection = "paginated"
 
@@ -129,6 +156,11 @@ async def test_find_with_pagination(mongo_client):
 
 @pytest.mark.asyncio
 async def test_delete_one(mongo_client):
+    
+    if not mongo_client:
+        logger.error("Mongo client not found")
+        assert False
+    
     client, db_name = mongo_client
     collection = "delete_test"
 

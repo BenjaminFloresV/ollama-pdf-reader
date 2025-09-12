@@ -8,22 +8,26 @@ from app.services.ollama import OllamaService
 from app.services.pdf_reader import PDFReaderService
 from app.storage.s3_client import init_s3_client, download_bucket_objects
 from app.persistence.persistence import persistence as persistence_client
-from app.utils.toolbelt import validar_rut
-
+from app.core.logger import StructuredLogger
+from app.core.config import USE_GPT_OSS
+from app.services.gemini_api import GeminiAPI
 # To check API doc: 
 # - http://127.0.0.1:8000/redoc
 # - http://127.0.0.1:8000/docs#/default/update_item_items__item_id__put (SwaggerUI)
 
 
 ollama_service = OllamaService()
+gemini_api_service = GeminiAPI()
+logger = StructuredLogger(service="extract-ruts-from-pdf")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load whatever you need, example: db client
     init_s3_client() 
-    #await ollame_service.pull_model('deepseek-r1:1.5b')
+
     await ollama_service.pull_model('deepseek-coder:6.7b')
-    #await ollame_service.pull_model('gpt-oss:20b')
+    if USE_GPT_OSS:
+        await ollama_service.pull_model('gpt-oss:20b')
 
     yield
     # Anyhing else at the end
@@ -44,7 +48,7 @@ async def process_associated_pdfs(
     item: CausaItem | None = None,
     response: Response = Response
 ):
-    
+    logger.info("Request received", extra={"test": test, "model": model, "item": item.model_dump()})
     if test == 'true':
     
         causa_id = item.causa_id
@@ -60,6 +64,7 @@ async def process_associated_pdfs(
         
         
     if not causa:
+        logger.error("Causa does not exist")
         response.status_code = status.HTTP_404_NOT_FOUND
         return {"message": "Causa does not exist"}
 
@@ -68,6 +73,7 @@ async def process_associated_pdfs(
     is_reserved = causa['detail']['is_reserved']
     if is_reserved:
         return {'success_responses': [], 'failed_responses': [], 'message': 'Causa is reserved'}
+
 
     s3_urls = [pdf['s3_url'] for pdf in causa['detail']['associated_pdfs']]
     object_keys = [ 'pdf/' + s3_url.split('/')[-1] for s3_url in s3_urls]
@@ -81,11 +87,22 @@ async def process_associated_pdfs(
 
     ollama_responses = await ollama_service.extract_ruts_from_pdf(
         causa['detail']['litigantes'], pdfs_with_text, use_async=True, model=model)
+    
+    pdf_reader_responses = await pdf_reader.extract_ruts_from_pdf(pdfs_with_text)
 
     failed_responses = [response for response in ollama_responses if response['result'] is None]
     success_responses = [response for response in ollama_responses if response['result'] is not None]
     
+    gemini_api_responses = await gemini_api_service.extract_ruts_from_pdf_async([pdf['s3_url'] for pdf in pdfs_with_text])
 
-    print("Done.")
-    return {'success_responses': success_responses, 'failed_responses': failed_responses, 'pdfs_without_text': pdfs_without_text}
+    logger.info("Request processed")
+    return {
+        'ollama_responses': {
+            'success_responses': success_responses, 
+            'failed_responses': failed_responses
+        }, 
+        'pdf_reader_response': pdf_reader_responses,
+        'gemini_api_responses': gemini_api_responses,
+        'pdfs_without_text': pdfs_without_text,
+    }
 
